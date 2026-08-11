@@ -1325,7 +1325,8 @@ RemoteWidget::RemoteWidget(IconCache *iconCache, const QString &remote,
         return;
       }
 
-      QRegExp re(R"(^\s*(\d+) (\d\d\d\d-\d\d-\d\d \d\d:\d\d:\d\d)\.\d+ (.+)$)");
+      QRegularExpression re(QRegularExpression::anchoredPattern(
+          R"(\s*(\d+) (\d\d\d\d-\d\d-\d\d \d\d:\d\d:\d\d)\.\d+ (.+))"));
 
       QProcess *process = new QProcess;
       UseRclonePassword(process);
@@ -1353,15 +1354,16 @@ RemoteWidget::RemoteWidget(IconCache *iconCache, const QString &remote,
       QObject::connect(progress, &ProgressDialog::outputAvailable, this,
                        [=](const QString &output) {
                          QTextStream out(file);
-                         out.setCodec("UTF-8");
+                         out.setEncoding(QStringConverter::Utf8);
 
                          for (const auto &line : output.split('\n')) {
 
                            QString lineTmp = line;
                            lineTmp.replace("\n", "");
 
-                           if (re.exactMatch(lineTmp)) {
-                             QStringList cap = re.capturedTexts();
+                           QRegularExpressionMatch reMatch = re.match(lineTmp);
+                           if (reMatch.hasMatch()) {
+                             QStringList cap = reMatch.capturedTexts();
 
                              if (txt) {
                                out << "\"" << cap[3] << "\"" << '\n';
@@ -1619,9 +1621,7 @@ RemoteWidget::RemoteWidget(IconCache *iconCache, const QString &remote,
         clearPreemptiveQueues();
 
         // clear top folder's rows
-        int i = 0;
         while (model->removeRow(0, mRootIndex)) {
-          ++i;
         }
 
         ui.tree->selectionModel()->clear();
@@ -1646,7 +1646,7 @@ RemoteWidget::RemoteWidget(IconCache *iconCache, const QString &remote,
       [=](const QDir &path, const QModelIndex &parent) {
         setRemoteMode(ui.cb_GoogleDriveMode->currentIndex(), remoteType);
 
-        qApp->setActiveWindow(this);
+        activateWindow();
         QDir destPath = model->path(parent);
         QString dest = QFileInfo(path.path()).isDir()
                            ? destPath.filePath(path.dirName())
@@ -1976,9 +1976,7 @@ void RemoteWidget::switchRemoteType() {
 
     //!!!!!!!!! ???
     // clear top folder's rows
-    int i = 0;
     while (model->removeRow(0, mRootIndex)) {
-      ++i;
     }
 
     ui.tree->selectionModel()->clear();
